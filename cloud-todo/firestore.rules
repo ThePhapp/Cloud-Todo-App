@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Todos collection - chỉ cho phép user đọc/ghi todos của họ
+    match /todos/{todoId} {
+      // Cho phép đọc nếu user đã đăng nhập và todo thuộc về họ
+      allow read: if request.auth != null && 
+                     request.auth.uid == resource.data.user;
+      
+      // Cho phép tạo mới nếu đã đăng nhập và set đúng user ID
+      allow create: if request.auth != null && 
+                       request.auth.uid == request.resource.data.user &&
+                       request.resource.data.keys().hasAll(['text', 'completed', 'user', 'createdAt']) &&
+                       request.resource.data.text is string &&
+                       request.resource.data.text.size() > 0 &&
+                       request.resource.data.completed is bool;
+      
+      // Cho phép cập nhật nếu user sở hữu todo và không thay đổi user ID
+      allow update: if request.auth != null && 
+                       request.auth.uid == resource.data.user &&
+                       request.resource.data.user == resource.data.user;
+      
+      // Cho phép xóa nếu user sở hữu todo
+      allow delete: if request.auth != null && 
+                       request.auth.uid == resource.data.user;
+    }
+  }
+}
