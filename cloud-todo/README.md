@@ -61,18 +61,19 @@ npm install
 - Tạo project tại [Firebase Console](https://console.firebase.google.com/)
 - Bật **Authentication** > **Google Sign-in**
 - Tạo **Firestore Database** (chế độ Test để bắt đầu)
-- Copy config vào `src/firebase.js`:
+- Copy config và tạo file `.env` trong thư mục root:
 
-```javascript
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "your-app.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-app.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
+```env
+VITE_FIREBASE_API_KEY=your_api_key_here
+VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```
+
+**Lưu ý:** File `.env` đã được thêm vào `.gitignore` để bảo mật
 
 ### 4. Cấu hình Firestore Rules
 Vào **Firestore Database** > **Rules** và thêm:

@@ -17,7 +17,46 @@
   background: linear-gradient(to bottom, #7e22ce, #2563eb);
 }
 
-/* Animations */
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #a855f7, #60a5fa);
+}
+
+/* Confetti Animation */
+@keyframes confetti {
+  0% {
+    transform: translateY(-10px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-confetti {
+  animation: confetti 3s linear forwards;
+}
+
+/* Shimmer Animation for Progress Bar */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* Slide In Animation */
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -29,6 +68,11 @@
   }
 }
 
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Fade In Animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -38,12 +82,22 @@
   }
 }
 
-.animate-slideIn {
-  animation: slideIn 0.3s ease-out;
-}
-
 .animate-fadeIn {
   animation: fadeIn 0.5s ease-out;
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* Smooth transitions */
@@ -67,4 +121,34 @@ button:focus {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.dark .glass {
+  background: rgba(31, 41, 55, 0.7);
+  border: 1px solid rgba(75, 85, 99, 0.18);
+}
+
+/* Hover scale effect */
+.hover-scale {
+  transition: transform 0.2s ease-in-out;
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(to right, #9333ea, #3b82f6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Dark mode gradient text */
+.dark .gradient-text {
+  background: linear-gradient(to right, #a855f7, #60a5fa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

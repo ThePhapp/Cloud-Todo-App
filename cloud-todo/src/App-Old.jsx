@@ -20,7 +20,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [todos, setTodos] = useState([]);
   const [input, setInput] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("all"); // all, active, completed
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
@@ -73,27 +73,38 @@ function App() {
   useEffect(() => {
     if (!user) return;
     
+    console.log("👤 User logged in:", user.uid);
+    
     const q = query(
       collection(db, "todos"),
       where("user", "==", user.uid)
     );
     
     const unsub = onSnapshot(q, (snapshot) => {
-      const todosData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      console.log("📦 Received snapshot, docs count:", snapshot.docs.length);
       
+      const todosData = snapshot.docs.map((d) => {
+        const data = { id: d.id, ...d.data() };
+        console.log("📝 Todo:", data);
+        return data;
+      });
+      
+      // Sort locally by createdAt
       todosData.sort((a, b) => {
         if (!a.createdAt || !b.createdAt) return 0;
         return b.createdAt.toMillis() - a.createdAt.toMillis();
       });
       
+      console.log("✅ Setting todos, count:", todosData.length);
       setTodos(todosData);
       
-      // Show confetti when all tasks completed
+      // Check for confetti (all completed)
       if (todosData.length > 0 && todosData.every(t => t.completed)) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 5000);
       }
     }, (error) => {
+      console.error("❌ Error fetching todos:", error);
       showNotification("❌ Error loading data: " + error.message);
     });
     return () => unsub();
@@ -106,15 +117,19 @@ function App() {
     
     try {
       setLoading(true);
-      await addDoc(collection(db, "todos"), {
+      console.log("➕ Adding todo:", { text: input, user: user.uid, priority, dueDate, category });
+      
+      const docRef = await addDoc(collection(db, "todos"), {
         text: input,
         completed: false,
         user: user.uid,
-        priority,
-        category,
+        priority: priority,
+        category: category,
         dueDate: dueDate || null,
         createdAt: serverTimestamp(),
       });
+      
+      console.log("✅ Todo added with ID:", docRef.id);
       
       setInput("");
       setDueDate("");
@@ -122,6 +137,7 @@ function App() {
       setCategory("personal");
       showNotification("✨ New task added!");
     } catch (error) {
+      console.error("❌ Error adding todo:", error);
       showNotification("❌ Error: " + error.message);
     } finally {
       setLoading(false);
@@ -142,7 +158,6 @@ function App() {
   const toggleComplete = async (id, current) => {
     try {
       await updateDoc(doc(db, "todos", id), { completed: !current });
-      if (!current) showNotification("🎉 Task completed!");
     } catch (error) {
       showNotification("❌ Error: " + error.message);
     }
@@ -187,21 +202,13 @@ function App() {
   // Count stats
   const activeCount = todos.filter((t) => !t.completed).length;
   const completedCount = todos.filter((t) => t.completed).length;
-  const completionPercentage = todos.length > 0 
-    ? Math.round((completedCount / todos.length) * 100) 
-    : 0;
+  const completionPercentage = todos.length > 0 ? Math.round((completedCount / todos.length) * 100) : 0;
 
-  // Priority helpers
+  // Priority colors
   const getPriorityColor = (p) => {
-    if (p === "high") return darkMode 
-      ? "text-red-400 border-red-800 bg-red-900/20"
-      : "text-red-500 border-red-200 bg-red-50";
-    if (p === "low") return darkMode
-      ? "text-green-400 border-green-800 bg-green-900/20"
-      : "text-green-500 border-green-200 bg-green-50";
-    return darkMode
-      ? "text-yellow-400 border-yellow-800 bg-yellow-900/20"
-      : "text-yellow-500 border-yellow-200 bg-yellow-50";
+    if (p === "high") return "text-red-500 border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800";
+    if (p === "low") return "text-green-500 border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800";
+    return "text-yellow-500 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800";
   };
 
   const getPriorityBadge = (p) => {
@@ -210,13 +217,13 @@ function App() {
     return "🟡";
   };
 
-  // Category helpers
+  // Category colors
   const getCategoryColor = (c) => {
     const colors = {
-      personal: darkMode ? "bg-purple-900/30 text-purple-300" : "bg-purple-100 text-purple-700",
-      work: darkMode ? "bg-blue-900/30 text-blue-300" : "bg-blue-100 text-blue-700",
-      shopping: darkMode ? "bg-pink-900/30 text-pink-300" : "bg-pink-100 text-pink-700",
-      health: darkMode ? "bg-green-900/30 text-green-300" : "bg-green-100 text-green-700",
+      personal: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+      work: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+      shopping: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
+      health: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
     };
     return colors[c] || colors.personal;
   };
@@ -231,74 +238,33 @@ function App() {
     return icons[c] || "📌";
   };
 
-  // Theme classes
-  const bgClass = darkMode 
-    ? "bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900" 
-    : "bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100";
-  const cardBgClass = darkMode ? "bg-gray-800/90" : "bg-white/90";
-  const textClass = darkMode ? "text-gray-100" : "text-gray-800";
-  const subTextClass = darkMode ? "text-gray-400" : "text-gray-600";
-  const inputBgClass = darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-200";
-
   return (
-    <div className={`min-h-screen ${bgClass} py-8 px-4 transition-colors duration-300`}>
-      {/* Confetti Animation */}
-      {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none z-50">
-          {[...Array(50)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute animate-confetti"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `-10px`,
-                animationDelay: `${Math.random() * 2}s`,
-                fontSize: `${Math.random() * 20 + 10}px`,
-              }}
-            >
-              {['🎉', '⭐', '✨', '🎊', '🌟'][Math.floor(Math.random() * 5)]}
-            </div>
-          ))}
-        </div>
-      )}
-
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100 py-8 px-4">
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-4 right-4 ${darkMode ? 'bg-gray-800 text-white' : 'bg-white'} shadow-lg rounded-lg px-6 py-3 z-50 animate-bounce`}>
+        <div className="fixed top-4 right-4 bg-white shadow-lg rounded-lg px-6 py-3 z-50 animate-bounce">
           <p className="text-sm font-medium">{notification}</p>
         </div>
       )}
 
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8 flex items-center justify-between">
-          <div className="flex-1"></div>
-          <div className="flex-1">
-            <h1 className={`text-5xl font-bold ${darkMode ? 'bg-gradient-to-r from-purple-400 to-blue-400' : 'bg-gradient-to-r from-purple-600 to-blue-600'} bg-clip-text text-transparent mb-2`}>
-              ☁️ Cloud Todo
-            </h1>
-            <p className={subTextClass}>Smart task management in the cloud</p>
-          </div>
-          <div className="flex-1 flex justify-end">
-            <button
-              onClick={toggleDarkMode}
-              className={`p-3 rounded-full ${darkMode ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-800 hover:bg-gray-700'} text-white transition-all duration-200 transform hover:scale-110`}
-              title={darkMode ? "Light Mode" : "Dark Mode"}
-            >
-              {darkMode ? "☀️" : "🌙"}
-            </button>
-          </div>
+        <div className="text-center mb-8">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
+            ☁️ Cloud Todo App
+          </h1>
+          <p className="text-gray-600">Quản lý công việc thông minh trên đám mây</p>
         </div>
 
         {!user ? (
           /* Login Screen */
-          <div className={`${cardBgClass} backdrop-blur-sm rounded-2xl shadow-2xl p-12 text-center max-w-md mx-auto transform hover:scale-105 transition-transform duration-300`}>
+          <div className="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-md mx-auto transform hover:scale-105 transition-transform duration-300">
             <div className="mb-6">
               <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center text-4xl">
                 ☁️
               </div>
-              <h2 className={`text-2xl font-bold ${textClass} mb-2`}>Welcome!</h2>
-              <p className={subTextClass}>Sign in to start managing your tasks</p>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Chào mừng bạn!</h2>
+              <p className="text-gray-600">Đăng nhập để bắt đầu quản lý công việc</p>
             </div>
             <button
               onClick={login}
@@ -308,7 +274,7 @@ function App() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Signing in...
+                  Đang đăng nhập...
                 </>
               ) : (
                 <>
@@ -318,17 +284,17 @@ function App() {
                     <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                     <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
-                  Sign in with Google
+                  Đăng nhập với Google
                 </>
               )}
             </button>
           </div>
         ) : (
           /* Main App */
-          <div className={`${cardBgClass} backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden`}>
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden">
             {/* User Header */}
             <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <img
                     src={user.photoURL}
@@ -336,7 +302,7 @@ function App() {
                     className="w-12 h-12 rounded-full border-2 border-white shadow-lg"
                   />
                   <div>
-                    <p className="font-semibold">Hello, {user.displayName}!</p>
+                    <p className="font-semibold">Xin chào, {user.displayName}!</p>
                     <p className="text-sm text-purple-100">{user.email}</p>
                   </div>
                 </div>
@@ -344,39 +310,23 @@ function App() {
                   onClick={logout}
                   className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
                 >
-                  Logout
+                  Đăng xuất
                 </button>
               </div>
               
-              {/* Progress Bar */}
-              <div className="mb-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Overall Progress</span>
-                  <span>{completionPercentage}%</span>
-                </div>
-                <div className="w-full bg-white/20 rounded-full h-3">
-                  <div 
-                    className="bg-white rounded-full h-3 transition-all duration-500 relative overflow-hidden"
-                    style={{ width: `${completionPercentage}%` }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
-                  </div>
-                </div>
-              </div>
-
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4 mt-6">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold">{todos.length}</p>
-                  <p className="text-xs text-purple-100">Total</p>
+                  <p className="text-xs text-purple-100">Tổng số</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold">{activeCount}</p>
-                  <p className="text-xs text-purple-100">Active</p>
+                  <p className="text-xs text-purple-100">Đang làm</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold">{completedCount}</p>
-                  <p className="text-xs text-purple-100">Done</p>
+                  <p className="text-xs text-purple-100">Hoàn thành</p>
                 </div>
               </div>
             </div>
@@ -386,10 +336,10 @@ function App() {
               <form onSubmit={addTodo} className="mb-6">
                 <div className="flex gap-2 mb-3">
                   <input
-                    className={`flex-1 border-2 ${inputBgClass} rounded-xl px-4 py-3 focus:border-purple-500 focus:outline-none transition-colors duration-200`}
+                    className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-purple-500 focus:outline-none transition-colors duration-200"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Add a new task..."
+                    placeholder="Thêm công việc mới..."
                     disabled={loading}
                   />
                   <button
@@ -397,36 +347,26 @@ function App() {
                     disabled={loading || !input.trim()}
                     className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? "..." : "➕ Add"}
+                    {loading ? "..." : "➕ Thêm"}
                   </button>
                 </div>
                 
-                {/* Priority, Category & Due Date */}
-                <div className="flex gap-2 flex-wrap">
+                {/* Priority & Due Date */}
+                <div className="flex gap-2">
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
-                    className={`border-2 ${inputBgClass} rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none`}
+                    className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                   >
-                    <option value="low">🟢 Low</option>
-                    <option value="medium">🟡 Medium</option>
-                    <option value="high">🔴 High</option>
-                  </select>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className={`border-2 ${inputBgClass} rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none`}
-                  >
-                    <option value="personal">👤 Personal</option>
-                    <option value="work">💼 Work</option>
-                    <option value="shopping">🛒 Shopping</option>
-                    <option value="health">💪 Health</option>
+                    <option value="low">🟢 Thấp</option>
+                    <option value="medium">🟡 Trung bình</option>
+                    <option value="high">🔴 Cao</option>
                   </select>
                   <input
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className={`border-2 ${inputBgClass} rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none`}
+                    className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                   />
                 </div>
               </form>
@@ -435,10 +375,10 @@ function App() {
               <div className="mb-6 space-y-3">
                 <input
                   type="text"
-                  placeholder="🔍 Search tasks..."
+                  placeholder="🔍 Tìm kiếm công việc..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className={`w-full border-2 ${inputBgClass} rounded-xl px-4 py-2 focus:border-purple-500 focus:outline-none transition-colors duration-200`}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:border-purple-500 focus:outline-none transition-colors duration-200"
                 />
                 
                 <div className="flex gap-2">
@@ -449,12 +389,10 @@ function App() {
                       className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                         filter === f
                           ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
-                          : darkMode 
-                            ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                     >
-                      {f === "all" ? "📋 All" : f === "active" ? "⏳ Active" : "✅ Done"}
+                      {f === "all" ? "📋 Tất cả" : f === "active" ? "⏳ Đang làm" : "✅ Hoàn thành"}
                     </button>
                   ))}
                 </div>
@@ -463,9 +401,9 @@ function App() {
               {/* Todo List */}
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {filteredTodos.length === 0 ? (
-                  <div className={`text-center py-12 ${subTextClass}`}>
+                  <div className="text-center py-12 text-gray-400">
                     <p className="text-4xl mb-2">📝</p>
-                    <p>No tasks yet</p>
+                    <p>Chưa có công việc nào</p>
                   </div>
                 ) : (
                   filteredTodos.map((todo) => (
@@ -473,9 +411,7 @@ function App() {
                       key={todo.id}
                       className={`group border-2 rounded-xl p-4 transition-all duration-200 hover:shadow-md ${
                         todo.completed
-                          ? darkMode 
-                            ? "bg-gray-700/50 border-gray-600"
-                            : "bg-gray-50 border-gray-200"
+                          ? "bg-gray-50 border-gray-200"
                           : `border-l-4 ${getPriorityColor(todo.priority)}`
                       }`}
                     >
@@ -486,7 +422,7 @@ function App() {
                             type="text"
                             value={editText}
                             onChange={(e) => setEditText(e.target.value)}
-                            className={`flex-1 border-2 border-purple-500 ${darkMode ? 'bg-gray-700 text-white' : 'bg-white'} rounded-lg px-3 py-2 focus:outline-none`}
+                            className="flex-1 border-2 border-purple-500 rounded-lg px-3 py-2 focus:outline-none"
                             autoFocus
                           />
                           <button
@@ -513,25 +449,18 @@ function App() {
                               className="mt-1 w-5 h-5 rounded border-2 border-gray-300 text-purple-600 focus:ring-2 focus:ring-purple-500 cursor-pointer"
                             />
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p
-                                  className={`font-medium ${
-                                    todo.completed
-                                      ? darkMode ? "line-through text-gray-500" : "line-through text-gray-400"
-                                      : textClass
-                                  }`}
-                                >
-                                  {getPriorityBadge(todo.priority)} {todo.text}
-                                </p>
-                                {todo.category && (
-                                  <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(todo.category)}`}>
-                                    {getCategoryIcon(todo.category)}
-                                  </span>
-                                )}
-                              </div>
+                              <p
+                                className={`font-medium ${
+                                  todo.completed
+                                    ? "line-through text-gray-400"
+                                    : "text-gray-800"
+                                }`}
+                              >
+                                {getPriorityBadge(todo.priority)} {todo.text}
+                              </p>
                               {todo.dueDate && (
-                                <p className={`text-xs ${subTextClass} mt-1`}>
-                                  📅 {new Date(todo.dueDate).toLocaleDateString("en-US")}
+                                <p className="text-xs text-gray-500 mt-1">
+                                  📅 {new Date(todo.dueDate).toLocaleDateString("vi-VN")}
                                 </p>
                               )}
                             </div>
@@ -541,14 +470,14 @@ function App() {
                             <button
                               onClick={() => startEdit(todo)}
                               className="text-blue-500 hover:text-blue-700 p-2"
-                              title="Edit"
+                              title="Chỉnh sửa"
                             >
                               ✏️
                             </button>
                             <button
                               onClick={() => removeTodo(todo.id)}
                               className="text-red-500 hover:text-red-700 p-2"
-                              title="Delete"
+                              title="Xóa"
                             >
                               🗑️
                             </button>
