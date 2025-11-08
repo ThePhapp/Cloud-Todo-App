@@ -16,17 +16,39 @@
 
 ### 🎯 Tính năng nâng cao
 - **Mức độ ưu tiên** - 3 cấp độ: Thấp 🟢, Trung bình 🟡, Cao 🔴
+- **Danh mục** - 4 loại: Personal 👤, Work 💼, Shopping 🛒, Health 💪
 - **Ngày hết hạn** - Đặt deadline cho công việc
 - **Lọc công việc** - Xem tất cả / Đang làm / Hoàn thành
 - **Tìm kiếm** - Tìm nhanh công việc theo từ khóa
-- **Sắp xếp tự động** - Công việc mới nhất hiển thị đầu tiên
+- **Drag & Drop** - Kéo thả để sắp xếp thứ tự công việc
+- **Dark Mode** - Chế độ sáng/tối, lưu preference
+- **Multi-language** - Hỗ trợ tiếng Việt, English, 日本語
+
+### 📊 Statistics Dashboard
+- **Tổng quan** - Số lượng tasks theo trạng thái
+- **Biểu đồ tròn** - Phân tích task completed vs active
+- **Biểu đồ cột** - Tasks theo priority và category
+- **Xu hướng 7 ngày** - Line chart theo dõi hoàn thành hàng ngày
+
+### 📅 Calendar View
+- **Lịch tương tác** - Xem tasks theo ngày
+- **Màu sắc phân loại** - Xanh (completed), Xanh dương (có task), Đỏ (quá hạn)
+- **Chi tiết ngày** - Click vào ngày để xem danh sách tasks
+- **Quản lý nhanh** - Edit/Delete trực tiếp từ calendar
+
+### 🤖 AI Suggestions (Gemini Pro)
+- **Tạo task từ prompt** - Mô tả nhu cầu, AI tạo danh sách tasks
+- **Smart Analysis** - AI phân tích tasks hiện tại và đề xuất tasks mới
+- **Tự động phân loại** - AI gợi ý priority & category cho mỗi task
+- **Multi-language** - AI hiểu và trả lời bằng ngôn ngữ bạn chọn
 
 ### 🎨 Giao diện
 - **Gradient đẹp mắt** - Màu sắc chuyển tiếp mượt mà
 - **Responsive** - Tương thích mọi thiết bị
-- **Animations** - Hiệu ứng chuyển động mượt mà
+- **Animations** - Hiệu ứng chuyển động mượt mà (shimmer, confetti)
 - **Toast notifications** - Thông báo real-time
-- **Loading states** - Trạng thái tải rõ ràng
+- **Progress bar** - Thanh tiến độ hoàn thành với animation
+- **Tab navigation** - 4 tabs: Tasks, Statistics, Calendar, AI
 - **Hover effects** - Tương tác trực quan
 
 ### ☁️ Đồng bộ đám mây
@@ -37,12 +59,17 @@
 ## 🛠️ Công nghệ sử dụng
 
 - **React 19** - UI framework hiện đại
-- **Vite** - Build tool cực nhanh
+- **Vite 7** - Build tool cực nhanh với HMR
 - **Tailwind CSS 3** - Utility-first CSS framework
+- **@dnd-kit** - Drag and drop library hiện đại
+- **Recharts** - Thư viện biểu đồ cho React
+- **React Calendar** - Calendar component
+- **date-fns** - Thư viện xử lý ngày tháng
 - **Firebase 12**
   - Authentication (Google Sign-in)
   - Firestore (Real-time database)
   - Hosting (Deploy tự động)
+- **Google Generative AI (Gemini Pro)** - AI suggestions
 
 ## 📦 Cài đặt
 
@@ -71,9 +98,14 @@ VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+# Optional: AI Suggestions (Gemini Pro)
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-**Lưu ý:** File `.env` đã được thêm vào `.gitignore` để bảo mật
+**Lưu ý:** 
+- File `.env` đã được thêm vào `.gitignore` để bảo mật
+- Để sử dụng AI Suggestions, lấy API key miễn phí tại [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### 4. Cấu hình Firestore Rules
 Vào **Firestore Database** > **Rules** và thêm:

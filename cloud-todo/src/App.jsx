@@ -1,5 +1,21 @@
 import { useEffect, useState } from "react";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   auth,
   provider,
   signInWithPopup,
@@ -15,8 +31,144 @@ import {
   where,
   serverTimestamp,
 } from "./firebase";
+import { useLanguage } from "./LanguageContext";
+import StatisticsPanel from "./components/StatisticsPanel";
+import CalendarView from "./components/CalendarView";
+import AISuggestions from "./components/AISuggestions";
+
+// Sortable Todo Item Component
+function SortableTodoItem({ 
+  todo, 
+  darkMode, 
+  textClass, 
+  subTextClass,
+  editingId, 
+  editText, 
+  setEditText,
+  saveEdit,
+  cancelEdit,
+  toggleComplete,
+  startEdit,
+  removeTodo,
+  getPriorityColor,
+  getPriorityBadge,
+  getCategoryColor,
+  getCategoryIcon,
+  t
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: todo.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group border-2 rounded-xl p-4 transition-all duration-200 hover:shadow-md ${
+        todo.completed
+          ? darkMode 
+            ? "bg-gray-700/50 border-gray-600"
+            : "bg-gray-50 border-gray-200"
+          : `border-l-4 ${getPriorityColor(todo.priority)}`
+      } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+    >
+      {editingId === todo.id ? (
+        /* Edit Mode */
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            className={`flex-1 border-2 border-purple-500 ${darkMode ? 'bg-gray-700 text-white' : 'bg-white'} rounded-lg px-3 py-2 focus:outline-none`}
+            autoFocus
+          />
+          <button
+            onClick={() => saveEdit(todo.id)}
+            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+          >
+            💾
+          </button>
+          <button
+            onClick={cancelEdit}
+            className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+          >
+            ✖️
+          </button>
+        </div>
+      ) : (
+        /* Display Mode */
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1">
+            {/* Drag Handle */}
+            <div {...attributes} {...listeners} className="mt-1 cursor-grab active:cursor-grabbing touch-none">
+              <span className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg">⋮⋮</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={todo.completed}
+              onChange={() => toggleComplete(todo.id, todo.completed)}
+              className="mt-1 w-5 h-5 rounded border-2 border-gray-300 text-purple-600 focus:ring-2 focus:ring-purple-500 cursor-pointer"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p
+                  className={`font-medium ${
+                    todo.completed
+                      ? darkMode ? "line-through text-gray-500" : "line-through text-gray-400"
+                      : textClass
+                  }`}
+                >
+                  {getPriorityBadge(todo.priority)} {todo.text}
+                </p>
+                {todo.category && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(todo.category)}`}>
+                    {getCategoryIcon(todo.category)}
+                  </span>
+                )}
+              </div>
+              {todo.dueDate && (
+                <p className={`text-xs ${subTextClass} mt-1`}>
+                  📅 {new Date(todo.dueDate).toLocaleDateString("en-US")}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+              onClick={() => startEdit(todo)}
+              className="text-blue-500 hover:text-blue-700 p-2"
+              title={t("edit")}
+            >
+              ✏️
+            </button>
+            <button
+              onClick={() => removeTodo(todo.id)}
+              className="text-red-500 hover:text-red-700 p-2"
+              title={t("delete")}
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function App() {
+  const { t, language, changeLanguage } = useLanguage();
   const [user, setUser] = useState(null);
   const [todos, setTodos] = useState([]);
   const [input, setInput] = useState("");
@@ -33,6 +185,38 @@ function App() {
     return localStorage.getItem("darkMode") === "true";
   });
   const [showConfetti, setShowConfetti] = useState(false);
+  const [activeTab, setActiveTab] = useState("tasks"); // tasks, statistics, calendar, ai
+
+  // Drag and Drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = filteredTodos.findIndex((todo) => todo.id === active.id);
+      const newIndex = filteredTodos.findIndex((todo) => todo.id === over.id);
+
+      const newTodos = arrayMove(filteredTodos, oldIndex, newIndex);
+      
+      // Update order in Firestore
+      try {
+        for (let i = 0; i < newTodos.length; i++) {
+          const todoRef = doc(db, "todos", newTodos[i].id);
+          await updateDoc(todoRef, { order: i });
+        }
+        // Update local state will happen via onSnapshot
+      } catch (error) {
+        showNotification(t("error") + ": " + error.message);
+      }
+    }
+  };
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -47,9 +231,9 @@ function App() {
       setLoading(true);
       const result = await signInWithPopup(auth, provider);
       setUser(result.user);
-      showNotification("✅ Successfully logged in!");
+      showNotification(t("loginSuccess"));
     } catch (error) {
-      showNotification("❌ Login error: " + error.message);
+      showNotification(t("loginError") + ": " + error.message);
     } finally {
       setLoading(false);
     }
@@ -60,7 +244,7 @@ function App() {
     await signOut(auth);
     setUser(null);
     setTodos([]);
-    showNotification("👋 Logged out successfully");
+    showNotification(t("logoutSuccess"));
   };
 
   // Show notification
@@ -81,7 +265,11 @@ function App() {
     const unsub = onSnapshot(q, (snapshot) => {
       const todosData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
       
+      // Sort by order field (for drag & drop), then by createdAt
       todosData.sort((a, b) => {
+        if (a.order !== undefined && b.order !== undefined) {
+          return a.order - b.order;
+        }
         if (!a.createdAt || !b.createdAt) return 0;
         return b.createdAt.toMillis() - a.createdAt.toMillis();
       });
@@ -94,10 +282,10 @@ function App() {
         setTimeout(() => setShowConfetti(false), 5000);
       }
     }, (error) => {
-      showNotification("❌ Error loading data: " + error.message);
+      showNotification(t("loadError") + ": " + error.message);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, t]);
 
   // Add todo
   const addTodo = async (e) => {
@@ -114,15 +302,38 @@ function App() {
         category,
         dueDate: dueDate || null,
         createdAt: serverTimestamp(),
+        order: todos.length, // Add order field
       });
       
       setInput("");
       setDueDate("");
       setPriority("medium");
       setCategory("personal");
-      showNotification("✨ New task added!");
+      showNotification(t("taskAdded"));
     } catch (error) {
-      showNotification("❌ Error: " + error.message);
+      showNotification(t("error") + ": " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add todo from AI suggestion
+  const addTodoFromAI = async (suggestion) => {
+    try {
+      setLoading(true);
+      await addDoc(collection(db, "todos"), {
+        text: suggestion.text,
+        completed: false,
+        user: user.uid,
+        priority: suggestion.priority || "medium",
+        category: suggestion.category || "personal",
+        dueDate: null,
+        createdAt: serverTimestamp(),
+        order: todos.length,
+      });
+      showNotification(t("taskAdded"));
+    } catch (error) {
+      showNotification(t("error") + ": " + error.message);
     } finally {
       setLoading(false);
     }
@@ -132,9 +343,9 @@ function App() {
   const removeTodo = async (id) => {
     try {
       await deleteDoc(doc(db, "todos", id));
-      showNotification("🗑️ Task deleted");
+      showNotification(t("taskDeleted"));
     } catch (error) {
-      showNotification("❌ Delete error: " + error.message);
+      showNotification(t("deleteError") + ": " + error.message);
     }
   };
 
@@ -142,9 +353,9 @@ function App() {
   const toggleComplete = async (id, current) => {
     try {
       await updateDoc(doc(db, "todos", id), { completed: !current });
-      if (!current) showNotification("🎉 Task completed!");
+      if (!current) showNotification(t("taskCompleted"));
     } catch (error) {
-      showNotification("❌ Error: " + error.message);
+      showNotification(t("error") + ": " + error.message);
     }
   };
 
@@ -161,9 +372,9 @@ function App() {
       await updateDoc(doc(db, "todos", id), { text: editText });
       setEditingId(null);
       setEditText("");
-      showNotification("💾 Changes saved");
+      showNotification(t("changesSaved"));
     } catch (error) {
-      showNotification("❌ Error: " + error.message);
+      showNotification(t("error") + ": " + error.message);
     }
   };
 
@@ -272,18 +483,32 @@ function App() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8 flex items-center justify-between">
-          <div className="flex-1"></div>
+          <div className="flex-1 flex justify-start gap-2">
+            {/* Language Selector */}
+            <div className="relative">
+              <select
+                value={language}
+                onChange={(e) => changeLanguage(e.target.value)}
+                className={`${darkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-800 border-gray-300'} border-2 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer hover:border-purple-500 transition-colors`}
+                title={t("language")}
+              >
+                <option value="en">🇬🇧 {t("english")}</option>
+                <option value="vi">🇻🇳 {t("vietnamese")}</option>
+                <option value="ja">🇯🇵 {t("japanese")}</option>
+              </select>
+            </div>
+          </div>
           <div className="flex-1">
             <h1 className={`text-5xl font-bold ${darkMode ? 'bg-gradient-to-r from-purple-400 to-blue-400' : 'bg-gradient-to-r from-purple-600 to-blue-600'} bg-clip-text text-transparent mb-2`}>
-              ☁️ Cloud Todo
+              ☁️ {t("appTitle")}
             </h1>
-            <p className={subTextClass}>Smart task management in the cloud</p>
+            <p className={subTextClass}>{t("appSubtitle")}</p>
           </div>
           <div className="flex-1 flex justify-end">
             <button
               onClick={toggleDarkMode}
               className={`p-3 rounded-full ${darkMode ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-800 hover:bg-gray-700'} text-white transition-all duration-200 transform hover:scale-110`}
-              title={darkMode ? "Light Mode" : "Dark Mode"}
+              title={darkMode ? t("lightMode") : t("darkMode")}
             >
               {darkMode ? "☀️" : "🌙"}
             </button>
@@ -297,8 +522,8 @@ function App() {
               <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center text-4xl">
                 ☁️
               </div>
-              <h2 className={`text-2xl font-bold ${textClass} mb-2`}>Welcome!</h2>
-              <p className={subTextClass}>Sign in to start managing your tasks</p>
+              <h2 className={`text-2xl font-bold ${textClass} mb-2`}>{t("welcome")}</h2>
+              <p className={subTextClass}>{t("signInMessage")}</p>
             </div>
             <button
               onClick={login}
@@ -308,7 +533,7 @@ function App() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Signing in...
+                  {t("signingIn")}
                 </>
               ) : (
                 <>
@@ -318,7 +543,7 @@ function App() {
                     <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                     <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
-                  Sign in with Google
+                  {t("signInButton")}
                 </>
               )}
             </button>
@@ -336,7 +561,7 @@ function App() {
                     className="w-12 h-12 rounded-full border-2 border-white shadow-lg"
                   />
                   <div>
-                    <p className="font-semibold">Hello, {user.displayName}!</p>
+                    <p className="font-semibold">{t("hello")}, {user.displayName}!</p>
                     <p className="text-sm text-purple-100">{user.email}</p>
                   </div>
                 </div>
@@ -344,14 +569,14 @@ function App() {
                   onClick={logout}
                   className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
                 >
-                  Logout
+                  {t("logout")}
                 </button>
               </div>
               
               {/* Progress Bar */}
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-2">
-                  <span>Overall Progress</span>
+                  <span>{t("overallProgress")}</span>
                   <span>{completionPercentage}%</span>
                 </div>
                 <div className="w-full bg-white/20 rounded-full h-3">
@@ -368,20 +593,50 @@ function App() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold">{todos.length}</p>
-                  <p className="text-xs text-purple-100">Total</p>
+                  <p className="text-xs text-purple-100">{t("total")}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold">{activeCount}</p>
-                  <p className="text-xs text-purple-100">Active</p>
+                  <p className="text-xs text-purple-100">{t("active")}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold">{completedCount}</p>
-                  <p className="text-xs text-purple-100">Done</p>
+                  <p className="text-xs text-purple-100">{t("done")}</p>
                 </div>
               </div>
             </div>
 
+            {/* Tabs Navigation */}
+            <div className={`border-b-2 ${darkMode ? 'border-gray-700' : 'border-gray-200'} px-6`}>
+              <div className="flex gap-2">
+                {[
+                  { id: 'tasks', icon: '📝', label: 'Tasks' },
+                  { id: 'statistics', icon: '📊', label: 'Statistics' },
+                  { id: 'calendar', icon: '📅', label: 'Calendar' },
+                  { id: 'ai', icon: '🤖', label: 'AI' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-6 py-3 font-medium transition-all duration-200 border-b-2 ${
+                      activeTab === tab.id
+                        ? 'border-purple-600 text-purple-600'
+                        : darkMode
+                        ? 'border-transparent text-gray-400 hover:text-gray-300'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <span className="mr-2">{tab.icon}</span>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="p-6">
+              {/* Tasks Tab */}
+              {activeTab === 'tasks' && (
+                <>
               {/* Add Todo Form */}
               <form onSubmit={addTodo} className="mb-6">
                 <div className="flex gap-2 mb-3">
@@ -389,7 +644,7 @@ function App() {
                     className={`flex-1 border-2 ${inputBgClass} rounded-xl px-4 py-3 focus:border-purple-500 focus:outline-none transition-colors duration-200`}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Add a new task..."
+                    placeholder={t("addTaskPlaceholder")}
                     disabled={loading}
                   />
                   <button
@@ -397,7 +652,7 @@ function App() {
                     disabled={loading || !input.trim()}
                     className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? "..." : "➕ Add"}
+                    {loading ? "..." : `➕ ${t("addButton")}`}
                   </button>
                 </div>
                 
@@ -408,19 +663,19 @@ function App() {
                     onChange={(e) => setPriority(e.target.value)}
                     className={`border-2 ${inputBgClass} rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none`}
                   >
-                    <option value="low">🟢 Low</option>
-                    <option value="medium">🟡 Medium</option>
-                    <option value="high">🔴 High</option>
+                    <option value="low">🟢 {t("priorityLow")}</option>
+                    <option value="medium">🟡 {t("priorityMedium")}</option>
+                    <option value="high">🔴 {t("priorityHigh")}</option>
                   </select>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className={`border-2 ${inputBgClass} rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none`}
                   >
-                    <option value="personal">👤 Personal</option>
-                    <option value="work">💼 Work</option>
-                    <option value="shopping">🛒 Shopping</option>
-                    <option value="health">💪 Health</option>
+                    <option value="personal">👤 {t("categoryPersonal")}</option>
+                    <option value="work">💼 {t("categoryWork")}</option>
+                    <option value="shopping">🛒 {t("categoryShopping")}</option>
+                    <option value="health">💪 {t("categoryHealth")}</option>
                   </select>
                   <input
                     type="date"
@@ -435,7 +690,7 @@ function App() {
               <div className="mb-6 space-y-3">
                 <input
                   type="text"
-                  placeholder="🔍 Search tasks..."
+                  placeholder={`🔍 ${t("searchPlaceholder")}`}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className={`w-full border-2 ${inputBgClass} rounded-xl px-4 py-2 focus:border-purple-500 focus:outline-none transition-colors duration-200`}
@@ -454,111 +709,83 @@ function App() {
                             : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                     >
-                      {f === "all" ? "📋 All" : f === "active" ? "⏳ Active" : "✅ Done"}
+                      {f === "all" ? `📋 ${t("filterAll")}` : f === "active" ? `⏳ ${t("active")}` : `✅ ${t("done")}`}
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Todo List */}
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {filteredTodos.length === 0 ? (
-                  <div className={`text-center py-12 ${subTextClass}`}>
-                    <p className="text-4xl mb-2">📝</p>
-                    <p>No tasks yet</p>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={filteredTodos.map(todo => todo.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {filteredTodos.length === 0 ? (
+                      <div className={`text-center py-12 ${subTextClass}`}>
+                        <p className="text-4xl mb-2">📝</p>
+                        <p>{t("noTasks")}</p>
+                      </div>
+                    ) : (
+                      filteredTodos.map((todo) => (
+                        <SortableTodoItem
+                          key={todo.id}
+                          todo={todo}
+                          darkMode={darkMode}
+                          textClass={textClass}
+                          subTextClass={subTextClass}
+                          editingId={editingId}
+                          editText={editText}
+                          setEditText={setEditText}
+                          saveEdit={saveEdit}
+                          cancelEdit={cancelEdit}
+                          toggleComplete={toggleComplete}
+                          startEdit={startEdit}
+                          removeTodo={removeTodo}
+                          getPriorityColor={getPriorityColor}
+                          getPriorityBadge={getPriorityBadge}
+                          getCategoryColor={getCategoryColor}
+                          getCategoryIcon={getCategoryIcon}
+                          t={t}
+                        />
+                      ))
+                    )}
                   </div>
-                ) : (
-                  filteredTodos.map((todo) => (
-                    <div
-                      key={todo.id}
-                      className={`group border-2 rounded-xl p-4 transition-all duration-200 hover:shadow-md ${
-                        todo.completed
-                          ? darkMode 
-                            ? "bg-gray-700/50 border-gray-600"
-                            : "bg-gray-50 border-gray-200"
-                          : `border-l-4 ${getPriorityColor(todo.priority)}`
-                      }`}
-                    >
-                      {editingId === todo.id ? (
-                        /* Edit Mode */
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            className={`flex-1 border-2 border-purple-500 ${darkMode ? 'bg-gray-700 text-white' : 'bg-white'} rounded-lg px-3 py-2 focus:outline-none`}
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => saveEdit(todo.id)}
-                            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
-                          >
-                            💾
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
-                          >
-                            ✖️
-                          </button>
-                        </div>
-                      ) : (
-                        /* Display Mode */
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3 flex-1">
-                            <input
-                              type="checkbox"
-                              checked={todo.completed}
-                              onChange={() => toggleComplete(todo.id, todo.completed)}
-                              className="mt-1 w-5 h-5 rounded border-2 border-gray-300 text-purple-600 focus:ring-2 focus:ring-purple-500 cursor-pointer"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p
-                                  className={`font-medium ${
-                                    todo.completed
-                                      ? darkMode ? "line-through text-gray-500" : "line-through text-gray-400"
-                                      : textClass
-                                  }`}
-                                >
-                                  {getPriorityBadge(todo.priority)} {todo.text}
-                                </p>
-                                {todo.category && (
-                                  <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(todo.category)}`}>
-                                    {getCategoryIcon(todo.category)}
-                                  </span>
-                                )}
-                              </div>
-                              {todo.dueDate && (
-                                <p className={`text-xs ${subTextClass} mt-1`}>
-                                  📅 {new Date(todo.dueDate).toLocaleDateString("en-US")}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <button
-                              onClick={() => startEdit(todo)}
-                              className="text-blue-500 hover:text-blue-700 p-2"
-                              title="Edit"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              onClick={() => removeTodo(todo.id)}
-                              className="text-red-500 hover:text-red-700 p-2"
-                              title="Delete"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
+                </SortableContext>
+              </DndContext>
+                </>
+              )}
+
+              {/* Statistics Tab */}
+              {activeTab === 'statistics' && (
+                <StatisticsPanel todos={todos} darkMode={darkMode} />
+              )}
+
+              {/* Calendar Tab */}
+              {activeTab === 'calendar' && (
+                <CalendarView 
+                  todos={todos}
+                  darkMode={darkMode}
+                  toggleComplete={toggleComplete}
+                  startEdit={startEdit}
+                  removeTodo={removeTodo}
+                />
+              )}
+
+              {/* AI Suggestions Tab */}
+              {activeTab === 'ai' && (
+                <AISuggestions
+                  todos={todos}
+                  darkMode={darkMode}
+                  addTodoFromAI={addTodoFromAI}
+                  user={user}
+                />
+              )}
             </div>
           </div>
         )}
