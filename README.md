@@ -16,18 +16,46 @@
 
 ### 🎯 Tính năng nâng cao
 - **Mức độ ưu tiên** - 3 cấp độ: Thấp 🟢, Trung bình 🟡, Cao 🔴
+- **Danh mục** - Phân loại: Personal 👤, Work 💼, Shopping 🛒, Health 💪
 - **Ngày hết hạn** - Đặt deadline cho công việc
+- **Drag & Drop** - Kéo thả để sắp xếp thứ tự task
 - **Lọc công việc** - Xem tất cả / Đang làm / Hoàn thành
 - **Tìm kiếm** - Tìm nhanh công việc theo từ khóa
-- **Sắp xếp tự động** - Công việc mới nhất hiển thị đầu tiên
+
+### 🎭 Mood-Based Task Matching (Độc quyền!)
+- **Mood Tracker** - Check-in cảm xúc với 6 trạng thái: Energetic ⚡, Happy 😊, Focused 🎯, Calm 😌, Stressed 😰, Tired 😴
+- **Smart Suggestions** - AI gợi ý task phù hợp với mood hiện tại:
+  - 🎨 Happy = Creative tasks
+  - ⚡ Energetic = Challenging tasks  
+  - 😰 Stressed = Simple, quick wins
+  - 😴 Tired = Light tasks or rest
+- **Color Psychology** - Màu sắc UI tự động thay đổi theo mood
+- **Daily Persistence** - Mood được lưu và reset mỗi ngày mới
+
+### 📊 Analytics & Insights
+- **Statistics Dashboard** - Biểu đồ thống kê chi tiết:
+  - Task completion trends (7 ngày)
+  - Priority distribution (High/Medium/Low)
+  - Category breakdown (Personal/Work/Shopping/Health)
+  - Progress tracking với animated charts
+- **Calendar View** - Xem tasks theo lịch:
+  - Visual calendar với color-coding
+  - Due date tracking
+  - Overdue warnings
+- **AI Suggestions** - Gemini AI gợi ý task thông minh:
+  - Phân tích workload hiện tại
+  - Đề xuất task dựa trên context
+  - Smart task generation
 
 ### 🎨 Giao diện
+- **Dark Mode** - Chuyển đổi giao diện sáng/tối
+- **Multi-language** - Hỗ trợ 3 ngôn ngữ: English 🇬🇧, Tiếng Việt 🇻🇳, 日本語 🇯🇵
 - **Gradient đẹp mắt** - Màu sắc chuyển tiếp mượt mà
 - **Responsive** - Tương thích mọi thiết bị
 - **Animations** - Hiệu ứng chuyển động mượt mà
 - **Toast notifications** - Thông báo real-time
-- **Loading states** - Trạng thái tải rõ ràng
-- **Hover effects** - Tương tác trực quan
+- **Confetti celebration** - Pháo hoa khi hoàn thành tất cả task
+- **Progress bar** - Thanh tiến độ với shimmer effect
 
 ### ☁️ Đồng bộ đám mây
 - **Real-time sync** - Cập nhật tức thì trên mọi thiết bị
@@ -37,12 +65,17 @@
 ## 🛠️ Công nghệ sử dụng
 
 - **React 19** - UI framework hiện đại
-- **Vite** - Build tool cực nhanh
+- **Vite 7** - Build tool cực nhanh với HMR
 - **Tailwind CSS 3** - Utility-first CSS framework
 - **Firebase 12**
   - Authentication (Google Sign-in)
   - Firestore (Real-time database)
   - Hosting (Deploy tự động)
+- **@dnd-kit** - Drag and drop library
+- **Recharts** - Charting library cho statistics
+- **React Calendar** - Calendar component
+- **Google Gemini AI** - AI-powered task suggestions
+- **date-fns** - Date utilities
 
 ## 📦 Cài đặt
 
@@ -71,9 +104,14 @@ VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+# Optional: For AI Suggestions feature
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-**Lưu ý:** File `.env` đã được thêm vào `.gitignore` để bảo mật
+**Lưu ý:** 
+- File `.env` đã được thêm vào `.gitignore` để bảo mật
+- Để sử dụng AI Suggestions, lấy API key miễn phí tại [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### 4. Cấu hình Firestore Rules
 Vào **Firestore Database** > **Rules** và thêm:
@@ -172,11 +210,26 @@ todos: {
     completed: boolean,     // Trạng thái hoàn thành
     user: string,          // UID của user
     priority: string,      // "low" | "medium" | "high"
+    category: string,      // "personal" | "work" | "shopping" | "health"
     dueDate: string | null, // ISO date string
-    createdAt: timestamp   // Server timestamp
+    createdAt: timestamp,  // Server timestamp
+    order: number          // Thứ tự sắp xếp (cho drag & drop)
   }
 }
 ```
+
+## 🎭 Mood System
+
+App tự động đề xuất tasks dựa trên mood của bạn:
+
+| Mood | Icon | Gợi ý Task | UI Color |
+|------|------|------------|----------|
+| **Energetic** | ⚡ | Challenging, workout, problem-solving | Yellow-Orange gradient |
+| **Happy** | 😊 | Creative, brainstorming, presentation | Pink-Rose gradient |
+| **Focused** | 🎯 | Deep work, writing, coding | Blue-Indigo gradient |
+| **Calm** | 😌 | Planning, organizing, review | Green-Emerald gradient |
+| **Stressed** | 😰 | Easy wins, cleanup, simple tasks | Gray gradient |
+| **Tired** | 😴 | Light reading, email, rest | Purple-Violet gradient |
 
 ## 🔒 Bảo mật
 

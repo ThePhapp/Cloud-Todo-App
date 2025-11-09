@@ -101,6 +101,17 @@ export const translations = {
     aiKeyMissing: "AI API key not found. Please add VITE_GEMINI_API_KEY to your .env file",
     aiError: "AI Error",
     aiParseError: "Could not parse AI response",
+    
+    // Mood Tracker
+    moodTracker: "Mood Tracker",
+    currentMood: "Current Mood",
+    moodPrompt: "How are you feeling today? Select your mood to get personalized task suggestions!",
+    reset: "Reset",
+    moodBasedSuggestions: "Mood-Based Suggestions",
+    recommendedFromYourTasks: "Recommended from your tasks",
+    perfect: "Perfect",
+    suggestedNewTasks: "Suggested new tasks",
+    tip: "Tip",
   },
   
   vi: {
@@ -205,6 +216,17 @@ export const translations = {
     aiKeyMissing: "Không tìm thấy AI API key. Vui lòng thêm VITE_GEMINI_API_KEY vào file .env",
     aiError: "Lỗi AI",
     aiParseError: "Không thể phân tích phản hồi từ AI",
+    
+    // Mood Tracker
+    moodTracker: "Theo dõi Tâm trạng",
+    currentMood: "Tâm trạng hiện tại",
+    moodPrompt: "Bạn cảm thấy thế nào hôm nay? Chọn tâm trạng để nhận gợi ý công việc phù hợp!",
+    reset: "Đặt lại",
+    moodBasedSuggestions: "Gợi ý theo Tâm trạng",
+    recommendedFromYourTasks: "Được đề xuất từ công việc của bạn",
+    perfect: "Hoàn hảo",
+    suggestedNewTasks: "Công việc mới được đề xuất",
+    tip: "Mẹo",
   },
   
   ja: {
@@ -309,5 +331,16 @@ export const translations = {
     aiKeyMissing: "AI APIキーが見つかりません。.envファイルにVITE_GEMINI_API_KEYを追加してください",
     aiError: "AIエラー",
     aiParseError: "AI応答を解析できませんでした",
+    
+    // Mood Tracker
+    moodTracker: "ムードトラッカー",
+    currentMood: "現在のムード",
+    moodPrompt: "今日の気分はいかがですか？ムードを選んでパーソナライズされたタスク提案を受け取りましょう！",
+    reset: "リセット",
+    moodBasedSuggestions: "ムードベースの提案",
+    recommendedFromYourTasks: "あなたのタスクからのおすすめ",
+    perfect: "完璧",
+    suggestedNewTasks: "提案された新しいタスク",
+    tip: "ヒント",
   }
 };

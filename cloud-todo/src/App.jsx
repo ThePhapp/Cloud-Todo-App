@@ -35,6 +35,9 @@ import { useLanguage } from "./LanguageContext";
 import StatisticsPanel from "./components/StatisticsPanel";
 import CalendarView from "./components/CalendarView";
 import AISuggestions from "./components/AISuggestions";
+import MoodTracker from "./components/MoodTracker";
+import MoodBasedSuggestions from "./components/MoodBasedSuggestions";
+import { MOODS } from "./components/MoodTracker";
 
 // Sortable Todo Item Component
 function SortableTodoItem({ 
@@ -185,7 +188,8 @@ function App() {
     return localStorage.getItem("darkMode") === "true";
   });
   const [showConfetti, setShowConfetti] = useState(false);
-  const [activeTab, setActiveTab] = useState("tasks"); // tasks, statistics, calendar, ai
+  const [activeTab, setActiveTab] = useState("tasks"); // tasks, statistics, calendar, ai, mood
+  const [currentMood, setCurrentMood] = useState(null);
 
   // Drag and Drop sensors
   const sensors = useSensors(
@@ -336,6 +340,38 @@ function App() {
       showNotification(t("error") + ": " + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add todo from mood suggestion
+  const addTodoFromMood = async (template) => {
+    try {
+      setLoading(true);
+      await addDoc(collection(db, "todos"), {
+        text: template.text,
+        completed: false,
+        user: user.uid,
+        priority: template.priority || "medium",
+        category: template.category || "personal",
+        dueDate: null,
+        createdAt: serverTimestamp(),
+        order: todos.length,
+      });
+      showNotification(t("taskAdded"));
+    } catch (error) {
+      showNotification(t("error") + ": " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle mood change
+  const handleMoodChange = (moodId) => {
+    setCurrentMood(moodId);
+    // Apply mood-based color theme to the app
+    const mood = MOODS.find(m => m.id === moodId);
+    if (mood) {
+      document.documentElement.style.setProperty('--mood-color', mood.color);
     }
   };
 
@@ -608,17 +644,18 @@ function App() {
 
             {/* Tabs Navigation */}
             <div className={`border-b-2 ${darkMode ? 'border-gray-700' : 'border-gray-200'} px-6`}>
-              <div className="flex gap-2">
+              <div className="flex gap-2 overflow-x-auto">
                 {[
                   { id: 'tasks', icon: '📝', label: 'Tasks' },
-                  { id: 'statistics', icon: '📊', label: 'Statistics' },
+                  { id: 'mood', icon: '🎭', label: 'Mood' },
+                  { id: 'statistics', icon: '📊', label: 'Stats' },
                   { id: 'calendar', icon: '📅', label: 'Calendar' },
                   { id: 'ai', icon: '🤖', label: 'AI' },
                 ].map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-6 py-3 font-medium transition-all duration-200 border-b-2 ${
+                    className={`px-4 py-3 font-medium transition-all duration-200 border-b-2 whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'border-purple-600 text-purple-600'
                         : darkMode
@@ -758,6 +795,25 @@ function App() {
                   </div>
                 </SortableContext>
               </DndContext>
+                </>
+              )}
+
+              {/* Mood Tab */}
+              {activeTab === 'mood' && (
+                <>
+                  <MoodTracker 
+                    darkMode={darkMode}
+                    onMoodChange={handleMoodChange}
+                    currentMood={currentMood}
+                  />
+                  {currentMood && (
+                    <MoodBasedSuggestions
+                      todos={todos}
+                      currentMood={currentMood}
+                      darkMode={darkMode}
+                      addTodoFromMood={addTodoFromMood}
+                    />
+                  )}
                 </>
               )}
 
