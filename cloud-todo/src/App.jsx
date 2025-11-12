@@ -38,6 +38,8 @@ import AISuggestions from "./components/AISuggestions";
 import MoodTracker from "./components/MoodTracker";
 import MoodBasedSuggestions from "./components/MoodBasedSuggestions";
 import { MOODS } from "./components/MoodTracker";
+import GamificationPanel, { awardXPForTask } from "./components/Gamification";
+import MusicPlayer from "./components/MusicPlayer";
 
 // Sortable Todo Item Component
 function SortableTodoItem({ 
@@ -389,7 +391,18 @@ function App() {
   const toggleComplete = async (id, current) => {
     try {
       await updateDoc(doc(db, "todos", id), { completed: !current });
-      if (!current) showNotification(t("taskCompleted"));
+      if (!current) {
+        showNotification(t("taskCompleted"));
+        // Award XP for completing task
+        const todo = todos.find(t => t.id === id);
+        if (todo && user) {
+          try {
+            await awardXPForTask(user, todo, false);
+          } catch (error) {
+            console.error("Error awarding XP:", error);
+          }
+        }
+      }
     } catch (error) {
       showNotification(t("error") + ": " + error.message);
     }
@@ -648,6 +661,8 @@ function App() {
                 {[
                   { id: 'tasks', icon: '📝', label: 'Tasks' },
                   { id: 'mood', icon: '🎭', label: 'Mood' },
+                  { id: 'gamification', icon: '🎮', label: 'Game' },
+                  { id: 'music', icon: '🎵', label: 'Music' },
                   { id: 'statistics', icon: '📊', label: 'Stats' },
                   { id: 'calendar', icon: '📅', label: 'Calendar' },
                   { id: 'ai', icon: '🤖', label: 'AI' },
@@ -820,6 +835,24 @@ function App() {
               {/* Statistics Tab */}
               {activeTab === 'statistics' && (
                 <StatisticsPanel todos={todos} darkMode={darkMode} />
+              )}
+
+              {/* Gamification Tab */}
+              {activeTab === 'gamification' && (
+                <GamificationPanel 
+                  user={user}
+                  todos={todos}
+                  darkMode={darkMode}
+                />
+              )}
+
+              {/* Music Tab */}
+              {activeTab === 'music' && (
+                <MusicPlayer 
+                  darkMode={darkMode}
+                  currentTask={todos.find(t => !t.completed)}
+                  category={todos.find(t => !t.completed)?.category}
+                />
               )}
 
               {/* Calendar Tab */}
