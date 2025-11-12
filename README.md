@@ -2,6 +2,7 @@
 
 A smart cloud-based Todo List application built with Firebase & React.
 
+Link: https://cloud-todo-app-63d10.web.app/
 ## ✨ Features
 
 ### 🔐 Authentication
@@ -82,11 +83,3 @@ A smart cloud-based Todo List application built with Firebase & React.
   - Firestore (Real-time database)
   - Hosting (Auto deploy)
 - **Google Generative AI (Gemini Pro)** – AI suggestions
-
-## 📦 Installation
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/ThePhapp/Cloud-Todo-App.git
-cd Cloud-Todo-App/cloud-todo
-```
